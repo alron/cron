@@ -175,21 +175,7 @@ func (c *Cron) AddNamedJob(spec, name string, cmd Job) (EntryID, error) {
 // Schedule adds a Job to the Cron to be run on the given schedule.
 // The job is wrapped with the configured Chain.
 func (c *Cron) Schedule(schedule Schedule, cmd Job) EntryID {
-	c.runningMu.Lock()
-	defer c.runningMu.Unlock()
-	c.nextID++
-	entry := &Entry{
-		ID:         c.nextID,
-		Schedule:   schedule,
-		WrappedJob: c.chain.Then(cmd),
-		Job:        cmd,
-	}
-	if !c.running {
-		c.entries = append(c.entries, entry)
-	} else {
-		c.add <- entry
-	}
-	return entry.ID
+	return c.ScheduleNamed(schedule, "", cmd)
 }
 
 // ScheduleNamed adds a named Job to the Cron to be run on a given schedule.
