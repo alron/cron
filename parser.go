@@ -70,15 +70,19 @@ type Parser struct {
 //
 func NewParser(options ParseOption) Parser {
 	optionals := 0
+
 	if options&DowOptional > 0 {
 		optionals++
 	}
+
 	if options&SecondOptional > 0 {
 		optionals++
 	}
+
 	if optionals > 1 {
 		panic("multiple optionals may not be configured")
 	}
+
 	return Parser{options}
 }
 
@@ -92,13 +96,17 @@ func (p Parser) Parse(spec string) (Schedule, error) {
 
 	// Extract timezone if present
 	var loc = time.Local
+
 	if strings.HasPrefix(spec, "TZ=") || strings.HasPrefix(spec, "CRON_TZ=") {
 		var err error
+
 		i := strings.Index(spec, " ")
 		eq := strings.Index(spec, "=")
+
 		if loc, err = time.LoadLocation(spec[eq+1 : i]); err != nil {
 			return nil, fmt.Errorf("provided bad location %s: %v", spec[eq+1:i], err)
 		}
+
 		spec = strings.TrimSpace(spec[i:])
 	}
 
@@ -107,6 +115,7 @@ func (p Parser) Parse(spec string) (Schedule, error) {
 		if p.options&Descriptor == 0 {
 			return nil, fmt.Errorf("parser does not accept descriptors: %v", spec)
 		}
+
 		return parseDescriptor(spec, loc)
 	}
 
@@ -116,6 +125,7 @@ func (p Parser) Parse(spec string) (Schedule, error) {
 	// Validate & fill in any omitted or optional fields
 	var err error
 	fields, err = normalizeFields(fields, p.options)
+
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +134,10 @@ func (p Parser) Parse(spec string) (Schedule, error) {
 		if err != nil {
 			return 0
 		}
+
 		var bits uint64
 		bits, err = getField(field, r)
+
 		return bits
 	}
 
@@ -137,6 +149,7 @@ func (p Parser) Parse(spec string) (Schedule, error) {
 		month      = field(fields[4], months)
 		dayofweek  = field(fields[5], dow)
 	)
+
 	if err != nil {
 		return nil, err
 	}
@@ -160,25 +173,30 @@ func (p Parser) Parse(spec string) (Schedule, error) {
 func normalizeFields(fields []string, options ParseOption) ([]string, error) {
 	// Validate optionals & add their field to options
 	optionals := 0
+
 	if options&SecondOptional > 0 {
 		options |= Second
 		optionals++
 	}
+
 	if options&DowOptional > 0 {
 		options |= Dow
 		optionals++
 	}
+
 	if optionals > 1 {
 		return nil, fmt.Errorf("multiple optionals may not be configured")
 	}
 
 	// Figure out how many fields we need
 	max := 0
+
 	for _, place := range places {
 		if options&place > 0 {
 			max++
 		}
 	}
+
 	min := max - optionals
 
 	// Validate number of fields
@@ -186,6 +204,7 @@ func normalizeFields(fields []string, options ParseOption) ([]string, error) {
 		if min == max {
 			return nil, fmt.Errorf("expected exactly %d fields, found %d: %s", min, count, fields)
 		}
+
 		return nil, fmt.Errorf("expected %d to %d fields, found %d: %s", min, max, count, fields)
 	}
 
@@ -205,12 +224,14 @@ func normalizeFields(fields []string, options ParseOption) ([]string, error) {
 	n := 0
 	expandedFields := make([]string, len(places))
 	copy(expandedFields, defaults)
+
 	for i, place := range places {
 		if options&place > 0 {
 			expandedFields[i] = fields[n]
 			n++
 		}
 	}
+
 	return expandedFields, nil
 }
 
@@ -235,14 +256,18 @@ func ParseStandard(standardSpec string) (Schedule, error) {
 // list of "ranges".
 func getField(field string, r bounds) (uint64, error) {
 	var bits uint64
+
 	ranges := strings.FieldsFunc(field, func(r rune) bool { return r == ',' })
+
 	for _, expr := range ranges {
 		bit, err := getRange(expr, r)
 		if err != nil {
 			return bits, err
 		}
+
 		bits |= bit
 	}
+
 	return bits, nil
 }
 
@@ -259,6 +284,7 @@ func getRange(expr string, r bounds) (uint64, error) {
 	)
 
 	var extra uint64
+
 	if lowAndHigh[0] == "*" || lowAndHigh[0] == "?" {
 		start = r.min
 		end = r.max
@@ -294,6 +320,7 @@ func getRange(expr string, r bounds) (uint64, error) {
 		if singleDigit {
 			end = r.max
 		}
+
 		if step > 1 {
 			extra = 0
 		}
@@ -301,16 +328,14 @@ func getRange(expr string, r bounds) (uint64, error) {
 		return 0, fmt.Errorf("too many slashes: %s", expr)
 	}
 
-	if start < r.min {
+	switch {
+	case start < r.min:
 		return 0, fmt.Errorf("beginning of range (%d) below minimum (%d): %s", start, r.min, expr)
-	}
-	if end > r.max {
+	case end > r.max:
 		return 0, fmt.Errorf("end of range (%d) above maximum (%d): %s", end, r.max, expr)
-	}
-	if start > end {
+	case start > end:
 		return 0, fmt.Errorf("beginning of range (%d) beyond end of range (%d): %s", start, end, expr)
-	}
-	if step == 0 {
+	case step == 0:
 		return 0, fmt.Errorf("step of range should be a positive number: %s", expr)
 	}
 
@@ -324,6 +349,7 @@ func parseIntOrName(expr string, names map[string]uint) (uint, error) {
 			return namedInt, nil
 		}
 	}
+
 	return mustParseInt(expr)
 }
 
@@ -333,6 +359,7 @@ func mustParseInt(expr string) (uint, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse int from %s: %s", expr, err)
 	}
+
 	if num < 0 {
 		return 0, fmt.Errorf("negative number (%d) not allowed: %s", num, expr)
 	}
@@ -353,6 +380,7 @@ func getBits(min, max, step uint) uint64 {
 	for i := min; i <= max; i += step {
 		bits |= 1 << i
 	}
+
 	return bits
 }
 
@@ -431,6 +459,7 @@ func parseDescriptor(descriptor string, loc *time.Location) (Schedule, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse duration %s: %s", descriptor, err)
 		}
+
 		return Every(duration), nil
 	}
 

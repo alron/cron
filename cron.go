@@ -90,9 +90,11 @@ func (s byTime) Less(i, j int) bool {
 	if s[i].Next.IsZero() {
 		return false
 	}
+
 	if s[j].Next.IsZero() {
 		return true
 	}
+
 	return s[i].Next.Before(s[j].Next)
 }
 
@@ -127,9 +129,11 @@ func New(opts ...Option) *Cron {
 		location:  time.Local,
 		parser:    standardParser,
 	}
+
 	for _, opt := range opts {
 		opt(c)
 	}
+
 	return c
 }
 
@@ -159,6 +163,7 @@ func (c *Cron) AddJob(spec string, cmd Job) (EntryID, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	return c.Schedule(schedule, cmd), nil
 }
 
@@ -169,6 +174,7 @@ func (c *Cron) AddNamedJob(spec, name string, cmd Job) (EntryID, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	return c.ScheduleNamed(schedule, name, cmd), nil
 }
 
@@ -183,6 +189,7 @@ func (c *Cron) ScheduleNamed(schedule Schedule, name string, cmd Job) EntryID {
 	c.runningMu.Lock()
 	defer c.runningMu.Unlock()
 	c.nextID++
+
 	entry := &Entry{
 		ID:         c.nextID,
 		Schedule:   schedule,
@@ -190,6 +197,7 @@ func (c *Cron) ScheduleNamed(schedule Schedule, name string, cmd Job) EntryID {
 		Job:        cmd,
 		Name:       name,
 	}
+
 	if !c.running {
 		c.entries = append(c.entries, entry)
 	} else {
@@ -203,11 +211,14 @@ func (c *Cron) ScheduleNamed(schedule Schedule, name string, cmd Job) EntryID {
 func (c *Cron) Entries() []Entry {
 	c.runningMu.Lock()
 	defer c.runningMu.Unlock()
+
 	if c.running {
 		replyChan := make(chan []Entry, 1)
 		c.snapshot <- replyChan
+
 		return <-replyChan
 	}
+
 	return c.entrySnapshot()
 }
 
@@ -223,6 +234,7 @@ func (c *Cron) Entry(id EntryID) Entry {
 			return entry
 		}
 	}
+
 	return Entry{}
 }
 
@@ -230,6 +242,7 @@ func (c *Cron) Entry(id EntryID) Entry {
 func (c *Cron) Remove(id EntryID) {
 	c.runningMu.Lock()
 	defer c.runningMu.Unlock()
+
 	if c.running {
 		c.remove <- id
 	} else {
@@ -241,9 +254,11 @@ func (c *Cron) Remove(id EntryID) {
 func (c *Cron) Start() {
 	c.runningMu.Lock()
 	defer c.runningMu.Unlock()
+
 	if c.running {
 		return
 	}
+
 	c.running = true
 	go c.run()
 }
@@ -255,6 +270,7 @@ func (c *Cron) Run() {
 		c.runningMu.Unlock()
 		return
 	}
+
 	c.running = true
 	c.runningMu.Unlock()
 	c.run()
@@ -267,6 +283,7 @@ func (c *Cron) run() {
 
 	// Figure out the next activation times for each entry.
 	now := c.now()
+
 	for _, entry := range c.entries {
 		entry.Next = entry.Schedule.Next(now)
 		c.logger.Info("schedule", "now", now, "entry", entry.ID, "next", entry.Next)
@@ -296,6 +313,7 @@ func (c *Cron) run() {
 					if e.Next.After(now) || e.Next.IsZero() {
 						break
 					}
+
 					c.startJob(e.WrappedJob)
 					e.Prev = e.Next
 					e.Next = e.Schedule.Next(now)
@@ -304,6 +322,7 @@ func (c *Cron) run() {
 
 			case newEntry := <-c.add:
 				timer.Stop()
+
 				now = c.now()
 				newEntry.Next = newEntry.Schedule.Next(now)
 				c.entries = append(c.entries, newEntry)
@@ -316,10 +335,12 @@ func (c *Cron) run() {
 			case <-c.stop:
 				timer.Stop()
 				c.logger.Info("stop")
+
 				return
 
 			case id := <-c.remove:
 				timer.Stop()
+
 				now = c.now()
 				c.removeEntry(id)
 				c.logger.Info("removed", "entry", id)
@@ -333,6 +354,7 @@ func (c *Cron) run() {
 // startJob runs the given job in a new goroutine.
 func (c *Cron) startJob(j Job) {
 	c.jobWaiter.Add(1)
+
 	go func() {
 		defer c.jobWaiter.Done()
 		j.Run()
@@ -349,15 +371,19 @@ func (c *Cron) now() time.Time {
 func (c *Cron) Stop() context.Context {
 	c.runningMu.Lock()
 	defer c.runningMu.Unlock()
+
 	if c.running {
 		c.stop <- struct{}{}
 		c.running = false
 	}
+
 	ctx, cancel := context.WithCancel(context.Background())
+
 	go func() {
 		c.jobWaiter.Wait()
 		cancel()
 	}()
+
 	return ctx
 }
 
@@ -367,6 +393,7 @@ func (c *Cron) entrySnapshot() []Entry {
 	for i, e := range c.entries {
 		entries[i] = *e
 	}
+
 	return entries
 }
 
@@ -377,5 +404,6 @@ func (c *Cron) removeEntry(id EntryID) {
 			entries = append(entries, e)
 		}
 	}
+
 	c.entries = entries
 }

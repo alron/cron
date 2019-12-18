@@ -71,9 +71,11 @@ func (s *SpecSchedule) Next(t time.Time) time.Time {
 	// as local to the time provided.
 	origLocation := t.Location()
 	loc := s.Location
+
 	if loc == time.Local {
 		loc = t.Location()
 	}
+
 	if s.Location != time.Local {
 		t = t.In(s.Location)
 	}
@@ -101,6 +103,7 @@ WRAP:
 			// Otherwise, set the date at the beginning (since the current time is irrelevant).
 			t = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, loc)
 		}
+
 		t = t.AddDate(0, 1, 0)
 
 		// Wrapped around.
@@ -119,6 +122,7 @@ WRAP:
 			added = true
 			t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, loc)
 		}
+
 		t = t.AddDate(0, 0, 1)
 		// Notice if the hour is no longer midnight due to DST.
 		// Add an hour if it's 23, subtract an hour if it's 1.
@@ -140,6 +144,7 @@ WRAP:
 			added = true
 			t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), 0, 0, 0, loc)
 		}
+
 		t = t.Add(1 * time.Hour)
 
 		if t.Hour() == 0 {
@@ -152,6 +157,7 @@ WRAP:
 			added = true
 			t = t.Truncate(time.Minute)
 		}
+
 		t = t.Add(1 * time.Minute)
 
 		if t.Minute() == 0 {
@@ -164,6 +170,7 @@ WRAP:
 			added = true
 			t = t.Truncate(time.Second)
 		}
+
 		t = t.Add(1 * time.Second)
 
 		if t.Second() == 0 {
@@ -181,8 +188,10 @@ func dayMatches(s *SpecSchedule, t time.Time) bool {
 		domMatch bool = 1<<uint(t.Day())&s.Dom > 0
 		dowMatch bool = 1<<uint(t.Weekday())&s.Dow > 0
 	)
+
 	if s.Dom&starBit > 0 || s.Dow&starBit > 0 {
 		return domMatch && dowMatch
 	}
+
 	return domMatch || dowMatch
 }

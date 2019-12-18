@@ -31,6 +31,7 @@ func (c Chain) Then(j Job) Job {
 	for i := range c.wrappers {
 		j = c.wrappers[len(c.wrappers)-i-1](j)
 	}
+
 	return j
 }
 
@@ -78,6 +79,7 @@ func DelayIfStillRunning(logger Logger) JobWrapper {
 func SkipIfStillRunning(logger Logger) JobWrapper {
 	var ch = make(chan struct{}, 1)
 	ch <- struct{}{}
+
 	return func(j Job) Job {
 		return FuncJob(func() {
 			select {
