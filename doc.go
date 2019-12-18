@@ -24,6 +24,8 @@ them in their own goroutines.
 	c.AddFunc("CRON_TZ=Asia/Tokyo 30 04 * * *", func() { fmt.Println("Runs at 04:30 Tokyo time every day") })
 	c.AddFunc("@hourly",      func() { fmt.Println("Every hour, starting an hour from now") })
 	c.AddFunc("@every 1h30m", func() { fmt.Println("Every hour thirty, starting an hour thirty from now") })
+	// Functions may have a name
+	c.AddNamedFunc("@every 27m", "Every 27 minutes", func() { fmt.Println("Every 27 minutes")})
 	c.Start()
 	..
 	// Funcs are invoked in their own goroutine, asynchronously.
