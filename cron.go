@@ -318,7 +318,7 @@ func (c *Cron) run() {
 
 	for _, entry := range c.entries {
 		entry.Next = entry.Schedule.Next(now)
-		c.logger.Info("schedule", "now", now, "entry", entry.ID, "next", entry.Next)
+		c.logger.Info("schedule", "now", now, "entry", entry.ID, "next", entry.Next, "name", entry.Name)
 	}
 
 	for {
@@ -354,7 +354,12 @@ func (c *Cron) run() {
 					}
 
 					e.Next = e.Schedule.Next(now)
-					c.logger.Info("run", "now", now, "entry", e.ID, "next", e.Next)
+
+					if e.Enable {
+						c.logger.Info("run", "now", now, "entry", e.ID, "next", e.Next, "name", e.Name)
+					} else {
+						c.logger.Info("run disabled", "now", now, "entry", e.ID, "next", e.Next, "name", e.Name)
+					}
 				}
 
 			case newEntry := <-c.add:
@@ -363,7 +368,7 @@ func (c *Cron) run() {
 				now = c.now()
 				newEntry.Next = newEntry.Schedule.Next(now)
 				c.entries = append(c.entries, newEntry)
-				c.logger.Info("added", "now", now, "entry", newEntry.ID, "next", newEntry.Next)
+				c.logger.Info("added", "now", now, "entry", newEntry.ID, "next", newEntry.Next, "name", newEntry.Name)
 
 			case replyChan := <-c.snapshot:
 				replyChan <- c.entrySnapshot()
