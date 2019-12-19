@@ -72,6 +72,9 @@ type Entry struct {
 
 	// The Job's name. Useful when querying the schedule
 	Name string
+
+	// Is this job enabled?
+	Enable bool
 }
 
 // Valid returns true if this is not the zero entry.
@@ -196,6 +199,7 @@ func (c *Cron) ScheduleNamed(schedule Schedule, name string, cmd Job) EntryID {
 		WrappedJob: c.chain.Then(cmd),
 		Job:        cmd,
 		Name:       name,
+		Enable:     true,
 	}
 
 	if !c.running {
@@ -248,6 +252,20 @@ func (c *Cron) Remove(id EntryID) {
 	} else {
 		c.removeEntry(id)
 	}
+}
+
+// Disable an entry but not remove it.
+func (c *Cron) Disable(id EntryID) {
+	c.runningMu.Lock()
+	defer c.runningMu.Unlock()
+	c.disableEntry(id)
+}
+
+// Enable a disabled entry, allowing it to run again.
+func (c *Cron) Enable(id EntryID) {
+	c.runningMu.Lock()
+	defer c.runningMu.Unlock()
+	c.enableEntry(id)
 }
 
 // Start the cron scheduler in its own goroutine, or no-op if already started.
@@ -310,7 +328,8 @@ func (c *Cron) run() {
 
 				// Run every entry whose next time was less than now
 				for _, e := range c.entries {
-					if e.Next.After(now) || e.Next.IsZero() {
+					// Only if they are enabled.
+					if !e.Enable || e.Next.After(now) || e.Next.IsZero() {
 						break
 					}
 
@@ -398,11 +417,40 @@ func (c *Cron) entrySnapshot() []Entry {
 }
 
 func (c *Cron) removeEntry(id EntryID) {
-	var entries []*Entry
+	var entries = make([]*Entry, 0, len(c.entries))
 	for _, e := range c.entries {
 		if e.ID != id {
 			entries = append(entries, e)
 		}
+	}
+
+	c.entries = entries
+}
+
+// disableEntry sets an entry Enable = false
+// a disabled entry is not removed, but will not run.
+func (c *Cron) disableEntry(id EntryID) {
+	var entries = make([]*Entry, 0, len(c.entries))
+	for _, e := range c.entries {
+		if e.ID == id {
+			e.Enable = false
+		}
+
+		entries = append(entries, e)
+	}
+
+	c.entries = entries
+}
+
+// enableEntry sets an entry Enable = true
+func (c *Cron) enableEntry(id EntryID) {
+	var entries = make([]*Entry, 0, len(c.entries))
+	for _, e := range c.entries {
+		if e.ID == id {
+			e.Enable = true
+		}
+
+		entries = append(entries, e)
 	}
 
 	c.entries = entries
