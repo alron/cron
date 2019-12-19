@@ -17,6 +17,8 @@ type Cron struct {
 	add       chan *Entry
 	remove    chan EntryID
 	snapshot  chan chan []Entry
+	enable    chan EntryID
+	disable   chan EntryID
 	running   bool
 	logger    Logger
 	runningMu sync.Mutex
@@ -258,14 +260,24 @@ func (c *Cron) Remove(id EntryID) {
 func (c *Cron) Disable(id EntryID) {
 	c.runningMu.Lock()
 	defer c.runningMu.Unlock()
-	c.disableEntry(id)
+
+	if c.running {
+		c.disable <- id
+	} else {
+		c.disableEntry(id)
+	}
 }
 
 // Enable a disabled entry, allowing it to run again.
 func (c *Cron) Enable(id EntryID) {
 	c.runningMu.Lock()
 	defer c.runningMu.Unlock()
-	c.enableEntry(id)
+
+	if c.running {
+		c.enable <- id
+	} else {
+		c.enableEntry(id)
+	}
 }
 
 // Start the cron scheduler in its own goroutine, or no-op if already started.
@@ -363,6 +375,20 @@ func (c *Cron) run() {
 				now = c.now()
 				c.removeEntry(id)
 				c.logger.Info("removed", "entry", id)
+
+			case id := <-c.disable:
+				timer.Stop()
+
+				now = c.now()
+				c.disableEntry(id)
+				c.logger.Info("disabled", "entry", id)
+
+			case id := <-c.enable:
+				timer.Stop()
+
+				now = c.now()
+				c.enableEntry(id)
+				c.logger.Info("enabled", "entry", id)
 			}
 
 			break
