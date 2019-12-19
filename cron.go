@@ -128,6 +128,8 @@ func New(opts ...Option) *Cron {
 		stop:      make(chan struct{}),
 		snapshot:  make(chan chan []Entry),
 		remove:    make(chan EntryID),
+		disable:   make(chan EntryID),
+		enable:    make(chan EntryID),
 		running:   false,
 		runningMu: sync.Mutex{},
 		logger:    DefaultLogger,
