@@ -342,13 +342,17 @@ func (c *Cron) run() {
 
 				// Run every entry whose next time was less than now
 				for _, e := range c.entries {
-					// Only if they are enabled.
-					if !e.Enable || e.Next.After(now) || e.Next.IsZero() {
+
+					if e.Next.After(now) || e.Next.IsZero() {
 						break
 					}
+					// Only if they are enabled.
+					if e.Enable {
+						c.startJob(e.WrappedJob)
 
-					c.startJob(e.WrappedJob)
-					e.Prev = e.Next
+						e.Prev = e.Next
+					}
+
 					e.Next = e.Schedule.Next(now)
 					c.logger.Info("run", "now", now, "entry", e.ID, "next", e.Next)
 				}
