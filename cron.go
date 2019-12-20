@@ -318,7 +318,7 @@ func (c *Cron) run() {
 
 	for _, entry := range c.entries {
 		entry.Next = entry.Schedule.Next(now)
-		c.logger.Info("schedule", "now", now, "entry", entry.ID, "next", entry.Next, "name", entry.Name)
+		c.logger.Info("schedule entry", "now", now, "entry", entry.ID, "next", entry.Next, "name", entry.Name)
 	}
 
 	for {
@@ -338,7 +338,7 @@ func (c *Cron) run() {
 			select {
 			case now = <-timer.C:
 				now = now.In(c.location)
-				c.logger.Info("wake", "now", now)
+				c.logger.Info("runner wake", "now", now)
 
 				// Run every entry whose next time was less than now
 				for _, e := range c.entries {
@@ -354,11 +354,13 @@ func (c *Cron) run() {
 					e.Next = e.Schedule.Next(now)
 
 					if e.Enable {
-						c.logger.Info("run", "now", now, "entry", e.ID, "next", e.Next, "name", e.Name)
+						c.logger.Info("run active", "now", now, "entry", e.ID, "next", e.Next, "name", e.Name)
 					} else {
 						c.logger.Info("run disabled", "now", now, "entry", e.ID, "next", e.Next, "name", e.Name)
 					}
 				}
+
+				c.logger.Info("runner sleep", "now", now)
 
 			case newEntry := <-c.add:
 				timer.Stop()
@@ -366,7 +368,8 @@ func (c *Cron) run() {
 				now = c.now()
 				newEntry.Next = newEntry.Schedule.Next(now)
 				c.entries = append(c.entries, newEntry)
-				c.logger.Info("added", "now", now, "entry", newEntry.ID, "next", newEntry.Next, "name", newEntry.Name)
+				c.logger.Info("added schedule entry", "now", now, "entry", newEntry.ID,
+					"next", newEntry.Next, "name", newEntry.Name)
 
 			case replyChan := <-c.snapshot:
 				replyChan <- c.entrySnapshot()
@@ -383,21 +386,21 @@ func (c *Cron) run() {
 
 				now = c.now()
 				c.removeEntry(id)
-				c.logger.Info("removed", "entry", id)
+				c.logger.Info("removed entry", "entry", id)
 
 			case id := <-c.disable:
 				timer.Stop()
 
 				now = c.now()
 				c.disableEntry(id)
-				c.logger.Info("disabled", "entry", id)
+				c.logger.Info("disabled entry", "entry", id)
 
 			case id := <-c.enable:
 				timer.Stop()
 
 				now = c.now()
 				c.enableEntry(id)
-				c.logger.Info("enabled", "entry", id)
+				c.logger.Info("enabled entry", "entry", id)
 			}
 
 			break
