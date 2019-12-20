@@ -347,16 +347,16 @@ func (c *Cron) run() {
 					}
 					// Only start a job update last run and if they are enabled.
 					if e.Enable {
-						c.startJob(e.WrappedJob)
+						c.startJob(e)
 						e.Prev = e.Next
 					}
 					// Do schedule a check even if job isn't enabled
 					e.Next = e.Schedule.Next(now)
 
 					if e.Enable {
-						c.logger.Info("run active", "now", now, "entry", e.ID, "next", e.Next, "name", e.Name)
+						c.logger.Info("next run enabled", "now", now, "entry", e.ID, "next", e.Next, "name", e.Name)
 					} else {
-						c.logger.Info("run disabled", "now", now, "entry", e.ID, "next", e.Next, "name", e.Name)
+						c.logger.Info("next run disabled", "now", now, "entry", e.ID, "next", e.Next, "name", e.Name)
 					}
 				}
 
@@ -408,13 +408,15 @@ func (c *Cron) run() {
 	}
 }
 
-// startJob runs the given job in a new goroutine.
-func (c *Cron) startJob(j Job) {
+// startJob runs the given entrie's wrapped job in a new goroutine.
+func (c *Cron) startJob(e *Entry) {
 	c.jobWaiter.Add(1)
 
 	go func() {
 		defer c.jobWaiter.Done()
-		j.Run()
+		c.logger.Info("run start", "now", c.now(), "entry", e.ID, "name", e.Name)
+		e.WrappedJob.Run()
+		c.logger.Info("run end", "now", c.now(), "entry", e.ID, "name", e.Name)
 	}()
 }
 
