@@ -354,13 +354,13 @@ func (c *Cron) run() {
 					e.Next = e.Schedule.Next(now)
 
 					if e.Enable {
-						c.logger.Info("next run enabled", "now", now, "entry", e.ID, "next", e.Next, "name", e.Name)
+						c.logger.Info("next run enabled", "now", c.now(), "entry", e.ID, "next", e.Next, "name", e.Name)
 					} else {
-						c.logger.Info("next run disabled", "now", now, "entry", e.ID, "next", e.Next, "name", e.Name)
+						c.logger.Info("next run disabled", "now", c.now(), "entry", e.ID, "next", e.Next, "name", e.Name)
 					}
 				}
 
-				c.logger.Info("runner sleep", "now", now)
+				c.logger.Info("runner sleep", "now", c.now())
 
 			case newEntry := <-c.add:
 				timer.Stop()
